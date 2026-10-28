@@ -12,6 +12,7 @@ const money = (n) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'B
 
 function App() {
   const [category, setCategory] = useState('Todos');
+  const [databaseAuctions, setDatabaseAuctions] = useState([]);
   const [search, setSearch] = useState('');
   const [notice, setNotice] = useState('');
   const [showLogin, setShowLogin] = useState(false);
@@ -23,6 +24,7 @@ function App() {
   const [session, setSession] = useState(null);
   const [activeAuction, setActiveAuction] = useState(null);
   const [roomPrice, setRoomPrice] = useState(0);
+  const [roomBidLoading, setRoomBidLoading] = useState(false);
   const [roomCountdown, setRoomCountdown] = useState(42);
   const [roomBidCount, setRoomBidCount] = useState(28);
   const [roomChat, setRoomChat] = useState([
@@ -39,9 +41,23 @@ function App() {
 
   useEffect(() => {
     if (!supabase) return undefined;
+    let cancelled = false;
+    supabase.from('auctions').select('id,title,description,category,current_price,minimum_increment,status,ends_at,starts_at')
+      .eq('status', 'live').order('ends_at', { ascending: true })
+      .then(({ data, error }) => {
+        if (cancelled || error || !data) return;
+        const colors = ['purple', 'gold', 'blue', 'pink'];
+        const emojis = { 'Eletrônicos': '🎮', 'Colecionáveis': '⌚', 'Casa e decoração': '💡', 'Moda': '👟' };
+        setDatabaseAuctions(data.map((item, index) => ({
+          id: item.id, persisted: true, category: item.category || 'Outros', title: item.title,
+          subtitle: item.description || 'Produto em leilão', price: Number(item.current_price), bids: 0,
+          viewers: 0, time: 'AO VIVO', live: true, emoji: emojis[item.category] || '📦',
+          color: colors[index % colors.length], increment: Number(item.minimum_increment || 1), endsAt: item.ends_at,
+        })));
+      });
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => setSession(nextSession));
-    return () => listener.subscription.unsubscribe();
+    return () => { cancelled = true; listener.subscription.unsubscribe(); };
   }, []);
   useEffect(() => {
     if (!activeAuction || roomCountdown <= 0) return undefined;
@@ -53,6 +69,14 @@ function App() {
     setActiveAuction(auction);
     setRoomPrice(auction.price);
     setRoomBidCount(auction.bids);
+    if (auction.persisted && supabase) {
+      supabase.from('bids').select('id,amount,created_at,bidder_id').eq('auction_id', auction.id).order('amount', { ascending: false }).limit(8)
+        .then(({ data }) => {
+          if (data) setRoomBidders(data.map((bid, index) => ({ id: bid.id, name: index === 0 ? 'Maior lance' : 'Comprador', amount: Number(bid.amount), time: new Date(bid.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) })));
+        });
+      supabase.from('bids').select('id', { count: 'exact', head: true }).eq('auction_id', auction.id)
+        .then(({ count }) => { if (count !== null) setRoomBidCount(count); });
+    }
     setRoomCountdown(42);
     setRoomChat([
       { id: 1, name: 'Marina S.', message: 'Que achado incrível! 🔥', color: 'lime' },
@@ -66,17 +90,28 @@ function App() {
     ]);
   }
 
-  function placePreviewBid() {
+  async function placePreviewBid() {
     if (!session) {
       setActiveAuction(null);
       requireAccount();
       return;
     }
     if (roomCountdown <= 0) {
-      setNotice('Este cronômetro de demonstração terminou. Os lances reais ainda não estão ativos.');
+      setNotice('Este leilão já encerrou o período de lances.');
       return;
     }
-    const nextPrice = roomPrice + (activeAuction?.increment || 10);
+    if (!activeAuction?.persisted || !supabase) {
+      setNotice('Este item é apenas uma demonstração visual. Para dar lances reais, é necessário um leilão publicado no banco de dados.');
+      return;
+    }
+    const nextPrice = roomPrice + (activeAuction?.increment || 1);
+    setRoomBidLoading(true);
+    const { error } = await supabase.rpc('place_bid', { p_auction_id: activeAuction.id, p_amount: nextPrice });
+    setRoomBidLoading(false);
+    if (error) {
+      setNotice(error.message || 'Não foi possível registrar o lance.');
+      return;
+    }
     setRoomPrice(nextPrice);
     setRoomBidCount((count) => count + 1);
     setRoomBidders((current) => [
@@ -107,7 +142,8 @@ function App() {
   }
 
   const categories = ['Todos', 'Eletrônicos', 'Colecionáveis', 'Casa e decoração', 'Moda'];
-  const filtered = auctions.filter((a) => (category === 'Todos' || a.category === category) && (a.title + a.subtitle).toLowerCase().includes(search.toLowerCase()));
+  const visibleAuctions = databaseAuctions.length ? databaseAuctions : auctions;
+  const filtered = visibleAuctions.filter((a) => (category === 'Todos' || a.category === category) && (a.title + a.subtitle).toLowerCase().includes(search.toLowerCase()));
 
   function requireAccount() {
     if (session) {
@@ -246,8 +282,8 @@ function App() {
               <div className="room-panel-heading"><div><span className="room-eyebrow">DISPUTA</span><h3>Lances</h3></div><span className="room-count">{roomBidCount}</span></div>
               <div className="room-current-bid"><small>LANCE ATUAL</small><strong>{money(roomPrice)}</strong><span>Incremento fixo: {money(activeAuction.increment || 10)}</span></div>
               <div className={'room-countdown ' + (roomCountdown <= 10 ? 'urgent' : '')}><small>ENCERRA EM</small><strong>{String(Math.floor(roomCountdown / 60)).padStart(2, '0')}:{String(roomCountdown % 60).padStart(2, '0')}</strong><span>Contagem demonstrativa</span></div>
-              <button className="room-bid-button" onClick={placePreviewBid} disabled={roomCountdown <= 0}>DAR LANCE <b>+ {money(activeAuction.increment || 10)}</b></button>
-              <p className="room-demo-hint">Botão de demonstração. Os lances ainda não são salvos no servidor.</p>
+              <button className="room-bid-button" onClick={placePreviewBid} disabled={roomCountdown <= 0 || roomBidLoading}>{roomBidLoading ? 'REGISTRANDO...' : 'DAR LANCE'} <b>+ {money(activeAuction.increment || 10)}</b></button>
+              <p className="room-demo-hint">{activeAuction.persisted ? 'Lances registrados no servidor. O histórico é atualizado ao abrir o leilão.' : 'Demonstração visual: este item não aceita lances reais.'}</p>
               <div className="room-panel-heading room-ranking-heading"><div><span className="room-eyebrow">AO VIVO</span><h3>Maiores lances</h3></div></div>
               <div className="room-bid-list">{roomBidders.slice().sort((a,b) => b.amount-a.amount).map((bid,index) => <div className="room-bid-row" key={bid.id}><span className={'room-rank rank-' + index}>{index + 1}</span><span className="room-bidder-name">{bid.name}</span><strong>{money(bid.amount)}</strong></div>)}</div>
             </aside>
@@ -273,8 +309,8 @@ function App() {
               <p className="room-demo-hint">Chat de demonstração: mensagens não são compartilhadas com outros usuários ainda.</p>
             </aside>
           </div>
-          <div className="room-mobile-bidbar"><div><small>LANCE ATUAL</small><strong>{money(roomPrice)}</strong></div><button onClick={placePreviewBid} disabled={roomCountdown <= 0}>DAR LANCE +{money(activeAuction.increment || 10)}</button></div>
-          <div className="room-prototype-note">MODO PRÉVIA • VÍDEO, CHAT E LANCES AINDA NÃO ESTÃO CONECTADOS EM TEMPO REAL</div>
+          <div className="room-mobile-bidbar"><div><small>LANCE ATUAL</small><strong>{money(roomPrice)}</strong></div><button onClick={placePreviewBid} disabled={roomCountdown <= 0 || roomBidLoading}>{roomBidLoading ? 'REGISTRANDO...' : 'DAR LANCE +'}{money(activeAuction.increment || 10)}</button></div>
+          <div className="room-prototype-note">MODO PRÉVIA • VÍDEO E CHAT AINDA NÃO ESTÃO CONECTADOS EM TEMPO REAL</div>
         </section>
       </div>}
       {notice && <div className="toast" role="status"><span>ℹ</span><p>{notice}</p><button onClick={() => { setNotice(''); setShowLogin(false); }} aria-label="Fechar aviso">×</button></div>}

@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { isSupabaseConfigured, supabase } from './lib/supabase';
 
 const auctions = [
   { id: 1, category: 'Eletrônicos', title: 'Setup gamer completo', subtitle: 'PC gamer • monitor • periféricos', price: 2450, bids: 28, viewers: 186, time: '00:42', live: true, emoji: '🎮', color: 'purple' },
@@ -14,6 +15,19 @@ function App() {
   const [search, setSearch] = useState('');
   const [notice, setNotice] = useState('');
   const [showLogin, setShowLogin] = useState(false);
+  const [authMode, setAuthMode] = useState('login');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
+  const [session, setSession] = useState(null);
+
+  useEffect(() => {
+    if (!supabase) return undefined;
+    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => setSession(nextSession));
+    return () => listener.subscription.unsubscribe();
+  }, []);
   const categories = ['Todos', 'Eletrônicos', 'Colecionáveis', 'Casa e decoração', 'Moda'];
   const filtered = auctions.filter((a) => (category === 'Todos' || a.category === category) && (a.title + a.subtitle).toLowerCase().includes(search.toLowerCase()));
 
@@ -92,7 +106,7 @@ function App() {
       <footer><a className="brand footer-brand" href="#"><span className="brand-mark">A<span>•</span></span><span>Aremata<span className="brand-light">Live</span></span></a><span>Leilões ao vivo, do seu jeito.</span><span>© 2026 AremataLive</span></footer>
 
       {notice && <div className="toast" role="status"><span>ℹ</span><p>{notice}</p><button onClick={() => { setNotice(''); setShowLogin(false); }} aria-label="Fechar aviso">×</button></div>}
-      {showLogin && <div className="modal-backdrop" onClick={() => setShowLogin(false)}><div className="login-modal" onClick={(e) => e.stopPropagation()}><button className="modal-close" onClick={() => setShowLogin(false)} aria-label="Fechar">×</button><div className="modal-logo">A<span>•</span></div><h2>Entre na disputa.</h2><p>Crie sua conta para dar lances e acompanhar seus arremates.</p><button className="signup-button modal-main" onClick={() => { setShowLogin(false); setNotice('A autenticação será conectada ao Supabase na próxima etapa.'); }}>Continuar com e-mail <span>→</span></button><small>Você pode assistir às lives sem fazer login.</small></div></div>}
+      {showLogin && <div className="modal-backdrop" onClick={() => setShowLogin(false)}><div className="login-modal" onClick={(e) => e.stopPropagation()}><button className="modal-close" onClick={() => setShowLogin(false)} aria-label="Fechar">×</button><div className="modal-logo">A<span>•</span></div><h2>{authMode === 'signup' ? 'Crie sua conta.' : 'Entre na disputa.'}</h2><p>{authMode === 'signup' ? 'Cadastre-se para acompanhar leilões e participar dos lances.' : 'Entre para acompanhar sua conta e participar dos leilões.'}</p><form className="auth-form" onSubmit={handleAuthSubmit}>{authMode === 'signup' && <input type="text" autoComplete="name" placeholder="Seu nome" value={displayName} onChange={(e) => setDisplayName(e.target.value)} required minLength={2} />}<input type="email" autoComplete="email" placeholder="Seu e-mail" value={email} onChange={(e) => setEmail(e.target.value)} required /><input type="password" autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'} placeholder="Senha (mínimo 6 caracteres)" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} /><button className="signup-button modal-main" type="submit" disabled={authLoading || !isSupabaseConfigured}>{authLoading ? 'Aguarde...' : authMode === 'signup' ? 'Criar conta' : 'Entrar com e-mail'} <span>→</span></button>{!isSupabaseConfigured && <small className="auth-warning">A conexão com o Supabase precisa ser configurada no ambiente de publicação.</small>}</form><button className="auth-switch" onClick={() => setAuthMode(authMode === 'signup' ? 'login' : 'signup')}>{authMode === 'signup' ? 'Já tem uma conta? Entrar' : 'Ainda não tem conta? Criar conta'}</button><small>Você pode assistir às lives públicas sem fazer login.</small></div></div>}
       <div className="prototype-note">PRÉVIA VISUAL • DADOS ILUSTRATIVOS • PAGAMENTOS E LANCES AINDA NÃO ESTÃO ATIVOS</div>
     </div>
   );

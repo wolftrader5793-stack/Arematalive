@@ -20,3 +20,7 @@
 .auth-switch{display:block;margin:10px auto 15px;background:transparent;border:0;color:#c7f36b;font-size:11px;cursor:pointer}
 .signed-in-label{display:inline-block;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#c7f36b;font-size:11px}
 @media(max-width:760px){.signed-in-label{display:none}.auth-form input{font-size:16px}}
+
+/* Authenticated header state */
+.session-email{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#c7f36b;font-size:11px}
+@media(max-width:760px){.session-email{max-width:100px}.header-actions{gap:8px}}

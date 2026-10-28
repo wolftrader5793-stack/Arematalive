@@ -10,10 +10,10 @@ Esta primeira entrega é um **protótipo visual de frontend**. Os produtos e nú
 
 1. Crie ou abra o projeto no [Supabase](https://supabase.com/).
 2. No SQL Editor, revise e execute `supabase/migrations/202610280001_initial_schema.sql`.
-3. Copie `.env.example` para `.env.local` e preencha `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` com os valores do projeto.
+3. O cliente já aponta para o projeto Supabase existente usando a chave publicável. Se necessário, você pode sobrescrever com `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` em `.env.local` ou nas variáveis do ambiente de publicação.
 4. Reinicie o servidor Vite depois de alterar o arquivo de ambiente.
 
-A chave anon/public pode ser usada no navegador com as políticas RLS ativas. **Nunca** use a chave `service_role` no frontend nem a publique no repositório. O schema cria perfis, leilões, histórico de lances e a função transacional `place_bid`, que valida o lance no servidor e bloqueia lances concorrentes no mesmo leilão. A interface atual ainda é uma prévia e não está conectada ao login, à transmissão ou aos pagamentos.
+A chave publicável pode ser usada no navegador; a segurança depende das políticas RLS e das funções do banco. A migração SQL precisa ser executada no SQL Editor do Supabase antes do cadastro/login funcionar. **Nunca** use a chave `service_role` no frontend nem a publique no repositório. O schema cria perfis, leilões, histórico de lances e a função transacional `place_bid`, que valida o lance no servidor e bloqueia lances concorrentes no mesmo leilão. A interface atual ainda é uma prévia e não está conectada ao login, à transmissão ou aos pagamentos.
 
 Para conceder papel de vendedor, use um fluxo administrativo confiável; usuários não podem promover a própria conta. A comissão de 5% e o split de pagamentos ainda precisam ser implementados no backend do provedor escolhido.
 

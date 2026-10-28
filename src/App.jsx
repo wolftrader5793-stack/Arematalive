@@ -89,11 +89,13 @@ function App() {
       { id: 2, name: 'Rafa Gamer', message: 'Pode mostrar mais detalhes?', color: 'purple' },
       { id: 3, name: 'Lucas M.', message: 'Estou acompanhando!', color: 'blue' },
     ]);
-    setRoomBidders([
-      { id: 1, name: 'Rafa Gamer', amount: auction.price, time: 'há 8 s' },
-      { id: 2, name: 'Marina S.', amount: Math.max(0, auction.price - 50), time: 'há 19 s' },
-      { id: 3, name: 'Lucas M.', amount: Math.max(0, auction.price - 100), time: 'há 31 s' },
-    ]);
+    if (!auction.persisted) {
+      setRoomBidders([
+        { id: 1, name: 'Rafa Gamer', amount: auction.price, time: 'há 8 s' },
+        { id: 2, name: 'Marina S.', amount: Math.max(0, auction.price - 50), time: 'há 19 s' },
+        { id: 3, name: 'Lucas M.', amount: Math.max(0, auction.price - 100), time: 'há 31 s' },
+      ]);
+    }
   }
 
   async function placePreviewBid() {
@@ -153,7 +155,7 @@ function App() {
 
   function requireAccount() {
     if (session) {
-      setNotice('Sua conta está conectada. Os lances reais ainda estão em desenvolvimento e não podem ser enviados nesta prévia.');
+      setNotice('Sua conta está conectada. Abra um leilão publicado para dar lances reais.');
       return;
     }
     setNotice('');

@@ -32,8 +32,54 @@ function App() {
   const filtered = auctions.filter((a) => (category === 'Todos' || a.category === category) && (a.title + a.subtitle).toLowerCase().includes(search.toLowerCase()));
 
   function requireAccount() {
-    setNotice('O cadastro será necessário para participar dos lances. A autenticação será ativada na próxima etapa.');
+    setNotice('');
+    setAuthMode('login');
     setShowLogin(true);
+  }
+
+  async function handleAuthSubmit(event) {
+    event.preventDefault();
+    if (!supabase) {
+      setNotice('A conexão com o Supabase não está configurada neste ambiente. Confira as variáveis de publicação.');
+      return;
+    }
+
+    setAuthLoading(true);
+    setNotice('');
+    try {
+      if (authMode === 'signup') {
+        const { data, error } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+          options: { data: { display_name: displayName.trim() } },
+        });
+        if (error) throw error;
+        setShowLogin(false);
+        setPassword('');
+        setNotice(data.session
+          ? 'Conta criada com sucesso! Você já está conectado.'
+          : 'Cadastro recebido! Confira seu e-mail para confirmar a conta antes de entrar.');
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
+        if (error) throw error;
+        setShowLogin(false);
+        setPassword('');
+        setNotice('Login realizado com sucesso.');
+      }
+    } catch (error) {
+      setNotice(error?.message || 'Não foi possível concluir a autenticação. Tente novamente.');
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
+  async function handleSignOut() {
+    if (!supabase) return;
+    const { error } = await supabase.auth.signOut();
+    setNotice(error ? (error.message || 'Não foi possível sair da conta.') : 'Você saiu da sua conta.');
   }
 
   return (
@@ -49,9 +95,8 @@ function App() {
           <kbd>⌘ K</kbd>
         </div>
         <nav className="header-actions">
-          <button className="text-button" onClick={() => setNotice('O fluxo para vender será habilitado na próxima etapa.')}>Quero vender</button>
-          <button className="login-button" onClick={requireAccount}>Entrar</button>
-          <button className="signup-button" onClick={requireAccount}>Criar conta <span>↗</span></button>
+          <button className="text-button" onClick={() => setNotice('A área do vendedor será habilitada na próxima etapa.')}>Quero vender</button>
+          {session ? <><span className="session-email">{session.user?.email}</span><button className="login-button" onClick={handleSignOut}>Sair</button></> : <><button className="login-button" onClick={requireAccount}>Entrar</button><button className="signup-button" onClick={() => { setAuthMode('signup'); setNotice(''); setShowLogin(true); }}>Criar conta <span>↗</span></button></>}
         </nav>
       </header>
 

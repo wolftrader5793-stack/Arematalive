@@ -45,6 +45,10 @@ alter table public.profiles enable row level security;
 alter table public.auctions enable row level security;
 alter table public.bids enable row level security;
 
+-- Users may edit their display name, but never grant themselves seller/admin roles.
+revoke update on public.profiles from authenticated;
+grant update (display_name) on public.profiles to authenticated;
+
 drop policy if exists "Profiles are visible to authenticated users" on public.profiles;
 create policy "Profiles are visible to authenticated users"
   on public.profiles for select to authenticated using (true);

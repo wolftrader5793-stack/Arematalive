@@ -32,6 +32,10 @@ function App() {
   const filtered = auctions.filter((a) => (category === 'Todos' || a.category === category) && (a.title + a.subtitle).toLowerCase().includes(search.toLowerCase()));
 
   function requireAccount() {
+    if (session) {
+      setNotice('Sua conta está conectada. Os lances reais ainda estão em desenvolvimento e não podem ser enviados nesta prévia.');
+      return;
+    }
     setNotice('');
     setAuthMode('login');
     setShowLogin(true);

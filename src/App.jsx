@@ -61,7 +61,13 @@ function App() {
   }, []);
   useEffect(() => {
     if (!activeAuction || roomCountdown <= 0) return undefined;
-    const timer = window.setInterval(() => setRoomCountdown((current) => Math.max(0, current - 1)), 1000);
+    const timer = window.setInterval(() => {
+      if (activeAuction.persisted && activeAuction.endsAt) {
+        setRoomCountdown(Math.max(0, Math.floor((new Date(activeAuction.endsAt).getTime() - Date.now()) / 1000)));
+      } else {
+        setRoomCountdown((current) => Math.max(0, current - 1));
+      }
+    }, 1000);
     return () => window.clearInterval(timer);
   }, [activeAuction, roomCountdown <= 0]);
 
@@ -120,7 +126,7 @@ function App() {
     ].sort((a, b) => b.amount - a.amount).slice(0, 8));
     setRoomChat((current) => [
       ...current,
-      { id: Date.now() + 1, name: 'Sistema', message: 'Novo lance de demonstração registrado na tela.', color: 'lime' },
+      { id: Date.now() + 1, name: 'Sistema', message: 'Lance registrado com sucesso.', color: 'lime' },
     ].slice(-30));
   }
 

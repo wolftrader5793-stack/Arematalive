@@ -1,7 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Public browser configuration for the existing project. RLS and database functions enforce access.
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://eqrpklxgnkgzbezlntsf.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_nOkZOCJEVEqcRURGcVyjfA_ZAKdg-ua';
 
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 
